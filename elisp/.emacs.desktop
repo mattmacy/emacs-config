@@ -1,0 +1,31 @@
+;; -*- mode: emacs-lisp; coding: emacs-mule; -*-
+;; --------------------------------------------------------------------------
+;; Desktop File for Emacs
+;; --------------------------------------------------------------------------
+;; Created Fri Aug 25 18:58:38 2023
+;; Desktop file format version 208
+;; Emacs version 26.3
+
+;; Global section:
+(setq desktop-saved-frameset [frameset 1 (25833 23630 349696 736000) (desktop . "208") "macymatt@uccf78e4685aa5c.ant.amazon.com" nil nil ((((minibuffer . t) (undecorated) (override-redirect) (font-backend xft x) (font . "-DAMA-Ubuntu Mono-normal-normal-normal-*-35-*-*-*-m-0-iso10646-1") (font-parameter . "Ubuntu Mono 13") (border-width . 0) (internal-border-width . 0) (right-divider-width . 0) (bottom-divider-width . 0) (vertical-scroll-bars . right) (horizontal-scroll-bars) (foreground-color . "#c2c2b0") (background-color . "#222222") (mouse-color . "black") (border-color . "#27323D") (screen-gamma) (line-spacing) (left-fringe . 10) (right-fringe . 10) (no-special-glyphs) (scroll-bar-foreground) (scroll-bar-background) (menu-bar-lines . 1) (tool-bar-lines . 1) (title) (wait-for-wm . t) (tool-bar-position . top) (inhibit-double-buffering) (icon-type . t) (auto-raise) (auto-lower) (cursor-type . box) (scroll-bar-width . 32) (scroll-bar-height . 0) (alpha) (no-focus-on-map) (no-accept-focus) (fullscreen) (visibility . t) (skip-taskbar) (z-group) (display-type . color) (background-mode . dark) (cursor-color . "#626262") (sticky) (environment) (frameset--id . "35C3-C016-1941-D3F9") (frameset--mini t . t) (frameset--text-pixel-width . 2208) (height . 32) (width . 122) (modeline . t) (unsplittable) (left . 174) (top . 88) (icon-name) (display . ":1") (explicit-name)) ((min-height . 4) (min-width . 10) (min-height-ignore . 2) (min-width-ignore . 5) (min-height-safe . 1) (min-width-safe . 2) (min-pixel-height . 144) (min-pixel-width . 180) (min-pixel-height-ignore . 72) (min-pixel-width-ignore . 90) (min-pixel-height-safe . 36) (min-pixel-width-safe . 36)) leaf (pixel-width . 2260) (pixel-height . 1116) (total-width . 125) (total-height . 31) (normal-height . 1.0) (normal-width . 1.0) (buffer "org-init.el" (selected . t) (hscroll . 0) (fringes 10 10 nil) (margins nil) (scroll-bars nil 2 t nil 0 t) (vscroll . 0) (dedicated) (point . 4493) (start . 3454))))])
+(setq desktop-missing-file-warning nil)
+(setq tags-file-name nil)
+(setq tags-table-list nil)
+(setq search-ring '("org-indent" "org-capture-t" "org-mode-setup"))
+(setq regexp-search-ring nil)
+(setq register-alist nil)
+(setq file-name-history '("/home/ANT.AMAZON.COM/macymatt/.elisp/" "/home/ANT.AMAZON.COM/macymatt/.elisp/org-init.el" "~/org_vault/Tasks.org" "~/roam_notes/20230825150824-100ms_outlier_investigation.org" "~/roam_notes/20230824182704-100ms_outlier_elimination.org" "~/roam_notes/journal/2023-08-25.org" "~/roam_notes/20230823092226-org_roam_keybindings.org" "/scp:macymatt6-clouddesk.aka.corp.amazon.com:/home/macymatt/workplace/382_release/src/EbsServer/src/lego/lego-extent-manager.cpp" "/scp:macymatt6-clouddesk.aka.corp.amazon.com:/home/macymatt/workplace/382_release/src/EbsServer/src/lego/lego-flusher-module.cpp" "/scp:macymatt6-clouddesk.aka.corp.amazon.com:/home/macymatt/workplace/LSR_mainline/src/EbsServer/src/lego/lego-flusher-module.cpp" "/scp:macymatt6-clouddesk.aka.corp.amazon.com:/home/macymatt/workplace/LSR_mainline/src/EbsServer/src/common/cbor-util.cpp" "~/devel/homedir/.emacs.el" "/scp:macymatt6-clouddesk.aka.corp.amazon.com:/home/macymatt/workplace/LSR_mainline/src/EbsServer/src/common/ebs-outliers.cpp" "/scp:macymatt6-clouddesk.aka.corp.amazon.com:/home/macymatt/workplace/LSR_mainline/src/EbsServer/src/lithium/nvmr/lithium-nvmr-target.cpp" "~/.elisp/org-init.el" "~/org_vault/Birthdays.org" "~/.emacs.d/bookmarks" "~/roam_notes/20230822170711-test.org" "~/roam_notes/20230822170531-new.org" "~/roam_notes/20230822170414-now.org" "~/roam_notes/20230822163520-.org" "~/org_vault/fleeting.org"))
+
+;; Buffer section -- buffers listed in same order as in buffer list:
+(desktop-create-buffer 208
+  "/home/ANT.AMAZON.COM/macymatt/.elisp/org-init.el"
+  "org-init.el"
+  'emacs-lisp-mode
+  '(eldoc-mode override-global-mode ivy-mode)
+  4493
+  '(4493 nil)
+  nil
+  nil
+  '((buffer-display-time 25833 23625 661731 224000) (buffer-file-coding-system . utf-8-unix))
+  '((mark-ring (348 101 2924 2924 101 101 4493 982))))
+

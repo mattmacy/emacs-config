@@ -1,0 +1,568 @@
+(setq inhibit-startup-message t)
+(set-fringe-mode 10)
+(setq visible-bell t)
+(global-set-key (kbd "<escape>") 'keyboard-escape-quit)
+(package-initialize)
+
+
+(set-face-attribute 'fixed-pitch nil :font "Fira Code" :height 220)
+(set-face-attribute 'variable-pitch nil :font "Cantarell" :height 250 :weight 'regular)
+
+(require 'package)
+(setq package-archives '(("melpa" . "https://melpa.org/packages/")
+			 ("elpa" . "https://elpa.gnu.org/packages/")
+			 ("org" . "https://orgmode.org/elpa/")
+			 ("nongnu" . "https://elpa.nongnu.org/nongnu/")))
+;; Added by Package.el.  This must come before configurations of
+;; installed packages.  Don't delete this line.  If you don't want it,
+;; just comment it out by adding a semicolon to the start of the line.
+;; You may delete these explanatory comments.
+
+(unless package-archive-contents
+  (package-refresh-contents))
+
+(unless (package-installed-p 'use-package)
+  (package-install 'use-package))
+(require 'use-package)
+(setq use-package-always-ensure t)
+
+
+(column-number-mode)
+(global-display-line-numbers-mode t)
+
+;;(use-package all-the-icons-dired
+;;  :hook (dired-mode . all-the-icons-dired-mode))
+
+(use-package term
+  :config
+  (setq explicit-shell-file-name "bash")
+  ;;(setq explicit-zsh-args '())
+  (setq term-prompt-regexp "^[^#$%>\n]*[#$%>] *"))
+;;(use-package eterm-256color
+;;  :hook (term-mode . eterm-256color-mode))
+
+
+
+
+(use-package org-roam
+  :ensure t
+  :init
+  (setq org-roam-v2-ack t)
+  (setq org-roam-dailies-directory "journal/")
+  :custom
+  (org-roam-directory "~/roam_notes")
+;;  (org-roam-completion-everywhere t)
+  (org-roam-dailies-capture-templates
+   '(("d" "default" entry "* %<%I:%M %p>: %?"
+      :if-new (file+head "%<%Y-%m-%d>.org" "#+title: %<%Y-%m-%d>\n"))))
+  (org-roam-capture-templates
+   '(("d" "default" plain "%?"
+     :if-new (file+head "%<%Y%m%d%H%M%S>-${slug}.org" "#+title: ${title}\n#+date: %U\n")
+     :unnarrowed t)
+     ("b" "book notes" plain
+      "\n* Source\n\nAuthor: %^{Author}\nTitle: ${title}\nYear: %^{Year}\n\n* Summary\n\n%?"
+      :if-new (file+head "%<%Y%m%d%H%M%S>-${slug}.org" "#+title: ${title}\n")
+      :unnarrowed t)
+     ("p" "project" plain "* Goals\n\n%?\n\n* Tasks\n\n** TODO Add initial tasks\n\n* Dates\n\n"
+      :if-new (file+head "%<%Y%m%d%H%M%S>-${slug}.org" "#+title: ${title}\n#+category: ${title}\n#+filetags: Project")
+      :unnarrowed t)
+     )
+   )
+  :bind (("C-c n l" . org-roam-buffer-toggle)
+         ("C-c n f" . org-roam-node-find)
+         ("C-c n i" . org-roam-node-insert)
+	 :map org-mode-map
+	 ("C-M-i"    . completion-at-point)
+	 :map org-roam-dailies-map
+         ("Y" . org-roam-dailies-capture-yesterday)
+         ("T" . org-roam-dailies-capture-tomorrow)
+	 )
+  :bind-keymap
+  ("C-c n d" . org-roam-dailies-map)
+  :config
+  (require 'org-roam-dailies)
+  (org-roam-db-autosync-mode))
+
+
+
+;;https://github.com/rranelli/auto-package-update.el
+(use-package auto-package-update)
+(auto-package-update-maybe)
+(package-refresh-contents :async)
+
+;;
+;; Ivy Mode
+;;
+(ivy-mode 1)
+(setq ivy-use-virtual-buffers t)
+(setq ivy-count-format "(%d/%d) ")
+(setq ivy-re-builders-alist
+      '((swiper . ivy--regex-plus)
+        (counsel-git . ivy--regex-plus)
+        (t      . ivy--regex-plus)))
+;; better performance on everything (especially windows), ivy-0.10.0 required
+;; @see https://github.com/abo-abo/swiper/issues/1218
+(setq ivy-dynamic-exhibit-delay-ms 250)
+;; (use-package ivy-posframe
+;;   :after ivy
+;;   :diminish
+;;   :config
+;;   (set-face-attribute 'ivy-posframe nil :background "gray11")
+;;   (set-face-attribute 'ivy-posframe-border nil :background "gray14")
+;;   (setq ivy-posframe-display-functions-alist
+;;         '((swiper          . ivy-display-function-fallback)
+;;           (complete-symbol . ivy-posframe-display-at-point)
+;;           (t . ivy-posframe-display-at-frame-top-center)))
+;;   (setq ivy-posframe-height-alist '((swiper . 15)
+;;                                    (t      . 20)))
+;;   (setq ivy-posframe-parameters '((internal-border-width . 4) (font . "Roboto Mono")))
+;;   (setq ivy-posframe-width 700)
+;;   (ivy-posframe-mode +1))
+(use-package ivy-rich
+  :preface
+  (defun ivy-rich-switch-buffer-icon (candidate)
+    (with-current-buffer
+        (get-buffer candidate)
+      (let ((icon (all-the-icons-icon-for-mode major-mode)))
+        (if (symbolp icon)
+            (all-the-icons-icon-for-mode 'fundamental-mode)
+          icon))))
+  :init
+  (setq ivy-rich-display-transformers-list ; max column width sum = (ivy-poframe-width - 1)
+        '(ivy-switch-buffer
+          (:columns
+           ((ivy-rich-switch-buffer-icon (:width 2))
+            (ivy-rich-candidate (:width 40))
+	    (ivy-rich-switch-buffer-indicators (:width 4 :face error :align right)); return the buffer indicators
+            (ivy-rich-switch-buffer-project (:width 15 :face success))
+	    (ivy-rich-switch-buffer-path (:width (lambda (x) (ivy-rich-switch-buffer-shorten-path x (ivy-rich-minibuffer-width 0.3)))))  ; return file path relative to project root or `default-directory' if project is nil
+            (ivy-rich-switch-buffer-major-mode (:width 13 :face warning)))
+           :predicate
+           (lambda (cand) (get-buffer cand)))
+          ivy-switch-buffer-other-window
+          (:columns
+           ((ivy-rich-switch-buffer-icon (:width 2))
+            (ivy-rich-candidate (:width 40))
+            (ivy-rich-switch-buffer-project (:width 15 :face success))
+            (ivy-rich-switch-buffer-major-mode (:width 15 :face warning)))
+           :predicate
+           (lambda (cand) (get-buffer cand)))
+          counsel-M-x
+          (:columns
+           ((counsel-M-x-transformer (:width 40))  ; thr original transformer
+            (ivy-rich-counsel-function-docstring (:width 100 :face font-lock-doc-face))))
+          counsel-describe-function
+          (:columns
+           ((counsel-describe-function-transformer (:width 40))
+            (ivy-rich-counsel-function-docstring (:width 100 :face font-lock-doc-face))))
+          counsel-describe-variable
+          (:columns
+           ((counsel-describe-variable-transformer (:width 40))
+            (ivy-rich-counsel-variable-docstring (:width 100 :face font-lock-doc-face))))
+          package-install
+          (:columns
+           ((counsel-describe-variable-transformer (:width 40))  ; the original transformer
+            (ivy-rich-counsel-variable-docstring (:face font-lock-doc-face))))  ; return the docstring of the variable
+          counsel-recentf
+          (:columns
+           ((ivy-rich-candidate (:width 0.8)) ; return the candidate itself
+            (ivy-rich-file-last-modified-time (:face font-lock-comment-face)))))) ; return the last modified time of the file
+  :config
+  (ivy-rich-mode +1)
+  (setcdr (assq t ivy-format-functions-alist) #'ivy-format-function-line))
+;;
+;; Ivy-rich settings
+;;
+(require 'ivy-rich)
+(ivy-rich-mode 1)
+(setcdr (assq t ivy-format-functions-alist) #'ivy-format-function-line)
+(all-the-icons-ivy-rich-mode 1)
+(add-hook 'dired-mode-hook 'all-the-icons-dired-mode)
+
+
+;;(use-package golden-ratio)
+;;(require 'golden-ratio)
+;;(golden-ratio-mode 1)
+
+;;
+;; The saveplace library saves the location of the point when you kill a buffer
+;; and returns to it next time you visit the associated file.
+;;
+(require 'saveplace)
+(save-place-mode 1)
+
+
+;;(setq split-height-threshold nil)
+(setq split-width-threshold nil)
+
+(defvar first-time t
+  "Flag signifying this is the first time that .emacs has been evaled")
+
+;; Meta
+(global-set-key "\M- " 'set-mark-command)
+(global-set-key "\M-\C-h" 'backward-kill-word)
+(global-set-key "\M-\C-r" 'query-replace)
+(global-set-key "\M-r" 'replace-string)
+(global-set-key "\M-g" 'goto-line)
+(global-set-key "\M-h" 'help-command)
+
+;; Function keys
+(global-set-key [f1] 'manual-entry)
+(global-set-key [f2] 'info)
+(global-set-key [f3] 'repeat-complex-command)
+(global-set-key [f4] 'advertised-undo)
+(global-set-key [f5] 'eval-current-buffer)
+(global-set-key [f6] 'buffer-menu)
+(global-set-key [f7] 'other-window)
+(global-set-key [f8] 'find-file)
+(global-set-key [f9] 'save-buffer)
+(global-set-key [f10] 'next-error)
+(global-set-key [f11] 'compile)
+(global-set-key [f12] 'grep)
+(global-set-key [C-f1] 'compile)
+(global-set-key [C-f2] 'grep)
+(global-set-key [C-f3] 'next-error)
+(global-set-key [C-f4] 'previous-error)
+(global-set-key [C-f5] 'display-faces)
+(global-set-key [C-f8] 'dired)
+(global-set-key [C-f10] 'kill-compilation)
+
+;; Keypad bindings
+(global-set-key [up] "\C-p")
+(global-set-key [down] "\C-n")
+(global-set-key [left] "\C-b")
+(global-set-key [right] "\C-f")
+(global-set-key [home] "\C-a")
+(global-set-key [end] "\C-e")
+(global-set-key [prior] "\M-v")
+(global-set-key [next] "\C-v")
+(global-set-key [C-up] "\M-\C-b")
+(global-set-key [C-down] "\M-\C-f")
+(global-set-key [C-left] "\M-b")
+(global-set-key [C-right] "\M-f")
+(global-set-key [C-home] "\M-<")
+(global-set-key [C-end] "\M->")
+(global-set-key [C-prior] "\M-<")
+(global-set-key [C-next] "\M->")
+
+(message "Got past global-set-key, %s%s" (user-login-name) ".")
+;; Mouse
+(global-set-key [mouse-3] 'imenu)
+
+;; Misc
+(global-set-key [C-tab] "\C-q\t")	; Control tab quotes a tab.
+(setq backup-by-copying-when-mismatch t)
+
+;; Treat 'y' or <CR> as yes, 'n' as no.
+(fset 'yes-or-no-p 'y-or-n-p)
+(define-key query-replace-map [return] 'act)
+(define-key query-replace-map [?\C-m] 'act)
+
+;; Load packages
+(require 'desktop)
+(require 'tar-mode)
+
+;; Pretty diff mode
+(autoload 'ediff-buffers "ediff" "Intelligent Emacs interface to diff" t)
+(autoload 'ediff-files "ediff" "Intelligent Emacs interface to diff" t)
+(autoload 'ediff-files-remote "ediff"
+  "Intelligent Emacs interface to diff")
+
+(if first-time
+    (setq auto-mode-alist
+	  (append '(("\\.cpp$" . c++-mode)
+		    ("\\.hpp$" . c++-mode)
+		    ("\\.lsp$" . lisp-mode)
+		    ("\\.scm$" . scheme-mode)
+		    ("\\.pl$" . perl-mode)
+		    ) auto-mode-alist)))
+
+;; Auto font lock mode
+(defvar font-lock-auto-mode-list
+  (list 'c-mode 'c++-mode 'c++-c-mode 'emacs-lisp-mode 'lisp-mode 'perl-mode 'scheme-mode)
+  "List of modes to always start in font-lock-mode")
+
+(defvar font-lock-mode-keyword-alist
+  '((c++-c-mode . c-font-lock-keywords)
+    (perl-mode . perl-font-lock-keywords))
+  "Associations between modes and keywords")
+
+(defun font-lock-auto-mode-select ()
+  "Automatically select font-lock-mode if the current major mode is in font-lock-auto-mode-list"
+  (if (memq major-mode font-lock-auto-mode-list)
+      (progn
+	(font-lock-mode t))
+    )
+  )
+(message "Got past font-lock-mode, %s%s" (user-login-name) ".")
+
+(global-set-key [M-f1] 'font-lock-fontify-buffer)
+
+;; New dabbrev stuff
+;(require 'new-dabbrev)
+(setq dabbrev-always-check-other-buffers t)
+(setq dabbrev-abbrev-char-regexp "\\sw\\|\\s_")
+(add-hook 'emacs-lisp-mode-hook
+	  '(lambda ()
+	     (set (make-local-variable 'dabbrev-case-fold-search) nil)
+	     (set (make-local-variable 'dabbrev-case-replace) nil)))
+(add-hook 'c-mode-hook
+	  '(lambda ()
+	     (set (make-local-variable 'dabbrev-case-fold-search) nil)
+	     (set (make-local-variable 'dabbrev-case-replace) nil)))
+(add-hook 'text-mode-hook
+	  '(lambda ()
+	     (set (make-local-variable 'dabbrev-case-fold-search) t)
+	     (set (make-local-variable 'dabbrev-case-replace) t)))
+
+;; C++ and C mode...
+(defun my-c++-mode-hook ()
+  (c-set-style "bogo-c++-style")
+  (define-key c++-mode-map "\C-m" 'reindent-then-newline-and-indent)
+  (define-key c++-mode-map "\C-ce" 'c-comment-edit)
+  (message "executing c++ mode hook")
+  (setq c++-auto-hungry-initial-state 'none)
+  (setq c++-delete-function 'backward-delete-char)
+  (setq c++-basic-offset 4)
+  (setq c++-continued-statement-offset 4)
+  (setq c++-brace-offset -4)
+  (setq c++-argdecl-indent 0)
+  (setq c++-tab-always-indent t)
+  (setq c++-indent-level 4)
+  (setq indent-tabs-mode nil)
+  (c-set-offset 'substatement-open '0)
+  (c-set-offset 'inline-open '+)
+  (c-set-offset 'block-open '+)
+  (c-set-offset 'brace-list-open '+)   ; all "opens" should be indented by the c-indent-level
+    (c-set-offset 'case-label '+)
+  (setq c++-label-offset -4)
+  (setq c++-empty-arglist-indent 4)
+  (setq c++-default-style "stroustrup"))
+;;(setq tab-width 4)
+;;(setq c-default-style "bsd")
+
+(defun my-c-mode-hook ()
+  (setq tab-width 4)
+  (define-key c-mode-map "\C-m" 'reindent-then-newline-and-indent)
+  (define-key c-mode-map "\C-ce" 'c-comment-edit)
+  (setq c-auto-hungry-initial-state 'none)
+  (setq c-delete-function 'backward-delete-char)
+  (setq c-tab-always-indent t)
+;; BSD-ish indentation style
+  (setq c-indent-level 4)
+  (setq c-continued-statement-offset 4)
+  (setq c-brace-offset -4)
+  (setq c-argdecl-indent 0)
+  (setq c-label-offset -4)
+  (setq c-empty-arglist-indent 4)
+  (setq c-basic-offset 4 indent-tabs-mode t)
+  (c-set-offset 'substatement-open '0)
+  (c-set-offset 'inline-open '+)
+  (c-set-offset 'block-open '+)
+  (c-set-offset 'brace-list-open '+)   ; all "opens" should be indented by the c-indent-level
+  (c-set-offset 'case-label '+))
+
+;; Perl mode
+(defun my-perl-mode-hook ()
+  (setq tab-width 4)
+  (define-key c++-mode-map "\C-m" 'reindent-then-newline-and-indent)
+  (setq perl-indent-level 4)
+  (setq perl-continued-statement-offset 4))
+
+;; Scheme mode...
+(defun my-scheme-mode-hook ()
+  (define-key scheme-mode-map "\C-m" 'reindent-then-newline-and-indent))
+
+;; Emacs-Lisp mode...
+(defun my-lisp-mode-hook ()
+  (define-key lisp-mode-map "\C-m" 'reindent-then-newline-and-indent)
+  (define-key lisp-mode-map "\C-i" 'lisp-indent-line)
+  (define-key lisp-mode-map "\C-j" 'eval-print-last-sexp))
+(defun my-fundamental-mode-hook ()
+  (setq fundamental-tab-always-indent t)
+  (setq fundamental-indent-level 4)
+  (setq indent-tabs-mode nil)
+  )
+
+;; Add all of the hooks...
+(add-hook 'c++-mode-hook 'my-c++-mode-hook)
+(add-hook 'c-mode-hook 'my-c-mode-hook)
+(add-hook 'scheme-mode-hook 'my-scheme-mode-hook)
+(add-hook 'emacs-lisp-mode-hook 'my-lisp-mode-hook)
+(add-hook 'lisp-mode-hook 'my-lisp-mode-hook)
+(add-hook 'perl-mode-hook 'my-perl-mode-hook)
+(add-hook 'fundamental-mode-hook 'my-fundamental-mode-hook)
+(message "Got past hooks, %s%s" (user-login-name) ".")
+;; Complement to next-error
+(defun previous-error (n)
+  "Visit previous compilation error message and corresponding source code."
+  (interactive "p")
+  (next-error (- n)))
+
+;; Misc...
+(transient-mark-mode 1)
+(setq mark-even-if-inactive t)
+(setq next-line-add-newlines nil)
+(setq compile-command "make")
+(setq suggest-key-bindings nil)
+(put 'eval-expression 'disabled nil)
+(put 'narrow-to-region 'disabled nil)
+(put 'set-goal-column 'disabled nil)
+(if (>= emacs-major-version 21)
+	(setq show-trailing-whitespace t))
+
+;; Elisp archive searching
+(autoload 'format-lisp-code-directory "lispdir" nil t)
+(autoload 'lisp-dir-apropos "lispdir" nil t)
+(autoload 'lisp-dir-retrieve "lispdir" nil t)
+(autoload 'lisp-dir-verify "lispdir" nil t)
+
+;; Font lock mode
+(defun my-make-face (face color &optional bold)
+  "Create a face from a color and optionally make it bold"
+  (make-face face)
+  (copy-face 'default face)
+  (set-face-foreground face color)
+  (if bold (make-face-bold face))
+  )
+
+(message "Got past make-face, %s%s" (user-login-name) ".")
+;; (if (eq window-system 'x)
+;;     (progn
+;;       (my-make-face 'blue "blue")
+;;       (my-make-face 'red "red")
+;;       (my-make-face 'green "dark green")
+;;       (setq font-lock-comment-face 'green)
+;;       (setq font-lock-string-face 'bold)
+;;       (setq font-lock-type-face 'bold)
+;;       (setq font-lock-keyword-face 'bold)
+;;       (setq font-lock-function-name-face 'red)
+;;       (setq font-lock-doc-string-face 'green)
+;;       (add-hook 'find-file-hooks 'font-lock-auto-mode-select)
+
+;;       (setq baud-rate 1000000)
+;;       (global-set-key "\C-cmm" 'menu-bar-mode)
+;;       (global-set-key "\C-cms" 'scroll-bar-mode)
+;;       (global-set-key [backspace] 'backward-delete-char)
+;; 					;      (global-set-key [delete] 'delete-char)
+;;       (standard-display-european t)
+;;       (load-library "iso-transl")))
+
+;; X11 or PC using direct screen writes
+(if window-system
+    (progn
+      ;;      (global-set-key [M-f1] 'hilit-repaint-command)
+      ;;      (global-set-key [M-f2] [?\C-u M-f1])
+      (setq hilit-mode-enable-list
+	    '(not text-mode c-mode c++-mode emacs-lisp-mode lisp-mode
+		  scheme-mode)
+	    hilit-auto-highlight nil
+	    hilit-auto-rehighlight 'visible
+	    hilit-inhibit-hooks nil
+	    hilit-inhibit-rebinding t)
+      ;;      (require 'hilit19)
+      (require 'paren))
+  ;;  (setq baud-rate 2400)			; For slow serial connections
+  )
+
+
+;; TTY type terminal
+(if (and (not window-system)
+	 (not (equal system-type 'ms-dos)))
+    (progn
+      (if first-time
+	  (progn
+	    (keyboard-translate ?\C-h ?\C-?)
+	    (keyboard-translate ?\C-? ?\C-h)))))
+
+;; Under UNIX
+(if (not (equal system-type 'ms-dos))
+    (progn
+      (if first-time
+	  (server-start))))
+
+;; Add any face changes here
+(add-hook 'term-setup-hook 'my-term-setup-hook)
+(defun my-term-setup-hook ()
+  (if (eq window-system 'pc)
+      (progn
+;;	(set-face-background 'default "red")
+	)))
+
+(message "Got past term-setup, %s%s" (user-login-name) ".")
+;; Restore the "desktop" - do this as late as possible
+;;(if first-time
+;;    (progn
+;;      (desktop-load-default)
+;;      (desktop-read)))
+
+
+(desktop-save-mode 1)
+;; Indicate that this file has been read at least once
+(setq first-time nil)
+
+;; No need to debug anything now
+
+(setq debug-on-error nil)
+
+
+(add-to-list 'load-path "~/.elisp/tuareg-mode")
+    (autoload 'tuareg-mode "tuareg" "Major mode for editing Caml code" t)
+    (autoload 'camldebug "camldebug" "Run the Caml debugger" t)
+    (autoload 'tuareg-imenu-set-imenu "tuareg-imenu" 
+      "Configuration of imenu for tuareg" t)
+
+(add-hook 'tuareg-mode-hook 'tuareg-imenu-set-imenu)
+
+
+(setq auto-mode-alist 
+        (append '(("\\.ml[ily]?$" . tuareg-mode)
+	          ("\\.topml$" . tuareg-mode))
+                  auto-mode-alist))
+
+
+(add-to-list 'load-path "~/.elisp")
+(add-to-list 'custom-theme-load-path "~/.emacs.d/themes")
+(if (eq window-system 'x)
+    (load-theme 'sourcerer t)
+  )
+
+;;(load-theme 'weyland-yutani t)
+
+(require 'xcscope)
+(cscope-setup)
+
+
+(load-file "~/.elisp/org-roam-init.el")
+(custom-set-variables
+ ;; custom-set-variables was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ '(column-number-mode t)
+ '(package-selected-packages
+   (quote
+    (visual-fill-column visual-fill visual-fill-mode org-indent org-bullets golden-ratio chronometrist-goal chronometrist pomodoro org-books org-outlook org-roam-ui git-timemachine org-inline-pdf org-pomodoro image-dired+ image+ ansilove org-notebook org-ac org-edit-latex org-drill org-real orgit org-zettelkasten org-sidebar org-radiobutton org-kanban org-gcal org-roam org pandoc pandoc-mode impatient-showdown all-the-icons-dired all-the-icons-ivy-rich all-the-icons-ivy all-the-icons-completion all-the-icons deadgrep use-package burly counsel ivy-rich ivy rust-playground flycheck-rust)))
+ '(safe-local-variable-values (quote ((c-set-style . "BSD")))))
+
+(setq ivy-rich-parse-remote-buffer nil)
+
+
+;;(custom-set-faces
+ ;; custom-set-faces was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+;; '(default ((t (:family "DejaVu Sans Mono" :foundry "unknown" :slant normal :weight normal :height 82 :width normal)))))
+;;(set-face-attribute 'default nil :height 130)
+;;(set-face-attribute 'default nil :width normal)
+;; All done
+(message "All done, %s%s" (user-login-name) ".")
+;;(set-face-attribute 'default nil :weight normal)
+
+(custom-set-faces
+ ;; custom-set-faces was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ )

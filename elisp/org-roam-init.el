@@ -130,81 +130,72 @@
 ;; Track when items were closed and notes about completion
 (setq org-log-done 'note)  ; Prompts for a note when marking DONE
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 ;; =============================================================================
-;; ORG-ROAM + GTD INTEGRATION
+;; INTERVIEW PREP TIME MANAGEMENT EXTENSION
 ;; =============================================================================
+;; Add to your existing org-mode GTD configuration
 
-;; Install org-roam if not already installed
-(unless (package-installed-p 'org-roam)
-  (package-install 'org-roam))
+;; Add interview prep to agenda files
+(add-to-list 'org-agenda-files "~/org/gtd/interview-prep/")
 
-(use-package org-roam
-  :ensure t
-  :custom
-  (org-roam-directory "~/org/roam/")
-  (org-roam-completion-everywhere t)
-  :bind (("C-c n l" . org-roam-buffer-toggle)
-         ("C-c n f" . org-roam-node-find)
-         ("C-c n i" . org-roam-node-insert)
-         ("C-c n c" . org-roam-capture))
-  :config
-  (org-roam-setup))
+;; Interview prep specific tags (extends your existing tags)
+(setq org-tag-alist 
+      (append org-tag-alist
+              '((:startgroup)
+                ("@system_design" . ?d)
+                ("@coding" . ?k) 
+                ("@behavioral" . ?b)
+                ("@applications" . ?a)
+                (:endgroup)
+                (:startgroup)
+                ("anthropic" . ?A)
+                ("roblox" . ?R)
+                ("high_comp" . ?H)
+                (:endgroup))))
 
-;; Create roam directory if it doesn't exist
-(unless (file-directory-p "~/org/roam")
-  (make-directory "~/org/roam" t))
+;; Interview prep capture templates (extends your existing templates)
+(setq org-capture-templates
+      (append org-capture-templates
+              '(("i" "Interview Prep")
+                ("is" "Study Session" entry 
+                 (file+headline "~/org/gtd/interview-prep/tasks.org" "Study Sessions")
+                 "* NEXT %^{Topic} :%^{@system_design|@coding|@behavioral}:\n  SCHEDULED: %^t\n  :PROPERTIES:\n  :EFFORT: %^{Duration|1:00|2:00|3:00}\n  :CATEGORY: interview_prep\n  :OBSIDIAN_NOTES: %^{Obsidian Link}\n  :END:\n  %?")
+                
+                ("ir" "Interview Prep Weekly Review" entry
+                 (file+olp+datetree "~/org/gtd/interview-prep/reviews.org")
+                 "* Interview Prep Weekly Review - Week %^{Week} (%U)\n** Time Summary (Target: 12 hours)\n*** System Design: __ / 6 hours\n*** Coding: __ / 3 hours\n*** Behavioral: __ / 3 hours\n** Focus This Week:\n- %?\n** Accomplishments:\n- \n** Challenges:\n- \n** Next Week Plan:\n- \n** Application Updates:\n- ")
 
-;; GTD + Roam capture templates
-(setq org-roam-capture-templates
-      '(("d" "default" plain
-         "* Overview\n\n* Details\n\n* Related\n\n"
-         :target (file+head "${slug}.org" "#+title: ${title}\n#+date: %U\n")
-         :unnarrowed t)
-        
-        ("p" "project" plain
-         "* Outcome\n%?\n* Success Criteria\n\n* Next Actions\n** TODO \n\n* Resources\n\n* Notes\n\n"
-         :target (file+head "projects/${slug}.org" 
-                            "#+title: ${title}\n#+date: %U\n#+filetags: :project:\n")
-         :unnarrowed t)
+                ("ia" "Application Task" entry
+                 (file+headline "~/org/gtd/interview-prep/applications.org" "Applications")
+                 "* TODO %^{Task} - %^{Company}\n  DEADLINE: %^t\n  :PROPERTIES:\n  :COMPANY: %\\2\n  :STATUS: %^{not_applied|applied|phone_screen|onsite|offer|rejected}\n  :END:\n  %?"))))
 
-        ("a" "accomplishment" plain
-         "* What I Did\n%?\n\n* Impact\n\n* Skills Used\n\n* What I Learned\n\n* Related Projects\n\n"
-         :target (file+head "daily/%<%Y-%m-%d>-accomplishments.org"
-                            "#+title: %<%Y-%m-%d> Accomplishments\n#+date: %U\n#+filetags: :accomplishment:\n")
-         :unnarrowed t)
-        
-        ("f" "reflection" plain
-         "* This Week's Wins\n%?\n\n* Challenges Overcome\n\n* Key Insights\n\n* Growth Areas\n\n* Next Week's Focus\n\n"
-         :target (file+head "weekly/%<%Y-W%U>-reflection.org"
-                            "#+title: Week %<%U, %Y> Reflection\n#+date: %U\n#+filetags: :reflection:\n")
-         :unnarrowed t)
+;; Interview prep agenda views (extends your existing agenda commands)
+(setq org-agenda-custom-commands
+      (append org-agenda-custom-commands
+              '(("I" "Interview Prep Dashboard"
+                 ((agenda "" ((org-agenda-files '("~/org/gtd/interview-prep/"))
+                             (org-agenda-span 'week)
+                             (org-agenda-overriding-header "This Week's Interview Prep")))
+                  (todo "NEXT" ((org-agenda-files '("~/org/gtd/interview-prep/"))
+                               (org-agenda-overriding-header "Next Study Sessions")))
+                  (tags-todo "@system_design|@coding|@behavioral"
+                            ((org-agenda-files '("~/org/gtd/interview-prep/"))
+                             (org-agenda-overriding-header "Study Tasks by Category")))))
+                
+                ("T" "Time Tracking Summary" 
+                 ((agenda "" ((org-agenda-files '("~/org/gtd/interview-prep/"))
+                             (org-agenda-span 'week)
+                             (org-agenda-clockreport-mode t)
+                             (org-agenda-overriding-header "Interview Prep Time This Week"))))))))
 
-        ("r" "reference" plain
-         "* Summary\n\n* Key Points\n%?\n\n* Applications\n\n* Related\n\n"
-         :target (file+head "references/${slug}.org"
-                           "#+title: ${title}\n#+date: %U\n#+filetags: :reference:\n")
-         :unnarrowed t)))
-
-;; Link GTD projects to roam notes
-(defun my/org-roam-project-finalize-hook ()
-  "Adds the captured project file to `org-agenda-files' if the
-capture was not aborted."
-  (remove-hook 'org-capture-after-finalize-hook #'my/org-roam-project-finalize-hook)
-  (unless org-note-abort
-    (with-current-buffer (org-capture-get :buffer)
-      (add-to-list 'org-agenda-files (buffer-file-name)))))
-
-(defun my/org-roam-find-project ()
-  "Find and open an org-roam project."
+;; Helper function for time tracking
+(defun interview-prep-weekly-summary ()
+  "Show weekly time summary for interview prep"
   (interactive)
-  (add-hook 'org-capture-after-finalize-hook #'my/org-roam-project-finalize-hook)
-  (org-roam-capture- :templates
-                     '(("p" "project" plain "* Goals\n\n%?\n\n* Tasks\n\n** TODO Add initial tasks\n\n* Dates\n\n"
-                        :if-new (file+head+olp "%<%Y%m%d%H%M%S>-${slug}.org"
-                                               "#+title: ${title}\n#+category: ${title}\n#+filetags: Project")
-                        :unnarrowed t))))
+  (let ((org-agenda-files '("~/org/gtd/interview-prep/")))
+    (org-clock-sum)
+    (message "Interview prep time this week: %s" 
+             (org-duration-from-minutes org-clock-file-total-minutes))))
 
-;; Key binding for project creation
-(global-set-key (kbd "C-c n p") 'my/org-roam-find-project)
+;; Quick access to interview prep dashboard
+(global-set-key (kbd "C-c i") (lambda () (interactive) (org-agenda nil "I")))

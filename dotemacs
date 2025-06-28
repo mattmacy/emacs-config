@@ -26,6 +26,51 @@
 (require 'use-package)
 (setq use-package-always-ensure t)
 
+;; Auto-install all-the-icons-dired
+(unless (package-installed-p 'all-the-icons-dired)
+  (package-refresh-contents)
+  (package-install 'all-the-icons-dired))
+
+;; Auto-install org-roam (you're using it with use-package, but ensure it's available)
+(unless (package-installed-p 'org-roam)
+  (package-refresh-contents)
+  (package-install 'org-roam))
+
+;; Auto-install auto-package-update
+(unless (package-installed-p 'auto-package-update)
+  (package-refresh-contents)
+  (package-install 'auto-package-update))
+
+;; Auto-install xcscope (if you want to ensure it's available)
+(unless (package-installed-p 'xcscope)
+  (package-refresh-contents)
+  (package-install 'xcscope))
+
+;; For the theme, if sourcerer is from a package (add if it's a package)
+;; (unless (package-installed-p 'sourcerer-theme)
+;;   (package-refresh-contents)
+;;   (package-install 'sourcerer-theme))
+
+;; Optional: Auto-install packages from your custom-set-variables list
+;; These appear to be packages you've installed but might want to ensure are available
+(defvar my-required-packages
+  '(visual-fill-column
+    org-bullets
+    chronometrist
+    git-timemachine
+    org-pomodoro
+    deadgrep
+    counsel
+    rust-playground
+    flycheck-rust
+    burly))
+
+(dolist (package my-required-packages)
+  (unless (package-installed-p package)
+    (package-refresh-contents)
+    (package-install package)))
+
+
 
 (column-number-mode)
 (global-display-line-numbers-mode t)
@@ -93,6 +138,10 @@
 ;;
 ;; Ivy Mode
 ;;
+; Auto-install ivy if not present
+(unless (package-installed-p 'ivy)
+  (package-refresh-contents)
+  (package-install 'ivy))
 (ivy-mode 1)
 (setq ivy-use-virtual-buffers t)
 (setq ivy-count-format "(%d/%d) ")
@@ -118,6 +167,18 @@
 ;;   (setq ivy-posframe-parameters '((internal-border-width . 4) (font . "Roboto Mono")))
 ;;   (setq ivy-posframe-width 700)
 ;;   (ivy-posframe-mode +1))
+
+;; Auto-install ivy-rich if not present
+(unless (package-installed-p 'ivy-rich)
+  (package-refresh-contents)
+  (package-install 'ivy-rich))
+;; Auto-install ivy-rich if not present
+(unless (package-installed-p 'all-the-icons-ivy-rich)
+  (package-refresh-contents)
+  (package-install 'all-the-icons-ivy-rich)
+  (package-install 'all-the-icons))
+
+
 (use-package ivy-rich
   :preface
   (defun ivy-rich-switch-buffer-icon (candidate)
@@ -522,8 +583,8 @@
 
 
 (add-to-list 'load-path "~/.elisp")
-(add-to-list 'custom-theme-load-path "~/.emacs.d/themes")
-(if (eq window-system 'x)
+(add-to-list 'custom-theme-load-path "~/.elisp/themes")
+(if (display-graphic-p)
     (load-theme 'sourcerer t)
   )
 
@@ -540,10 +601,11 @@
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  '(column-number-mode t)
+ '(custom-safe-themes
+   '("c44056a7a2426e1229749e82508099ba427dde80290da16a409d5d692718aa11" default))
  '(package-selected-packages
-   (quote
-    (visual-fill-column visual-fill visual-fill-mode org-indent org-bullets golden-ratio chronometrist-goal chronometrist pomodoro org-books org-outlook org-roam-ui git-timemachine org-inline-pdf org-pomodoro image-dired+ image+ ansilove org-notebook org-ac org-edit-latex org-drill org-real orgit org-zettelkasten org-sidebar org-radiobutton org-kanban org-gcal org-roam org pandoc pandoc-mode impatient-showdown all-the-icons-dired all-the-icons-ivy-rich all-the-icons-ivy all-the-icons-completion all-the-icons deadgrep use-package burly counsel ivy-rich ivy rust-playground flycheck-rust)))
- '(safe-local-variable-values (quote ((c-set-style . "BSD")))))
+   '(visual-fill-column visual-fill visual-fill-mode org-indent org-bullets golden-ratio chronometrist-goal chronometrist pomodoro org-books org-outlook org-roam-ui git-timemachine org-inline-pdf org-pomodoro image-dired+ image+ ansilove org-notebook org-ac org-edit-latex org-drill org-real orgit org-zettelkasten org-sidebar org-radiobutton org-kanban org-gcal org-roam org pandoc pandoc-mode impatient-showdown all-the-icons-dired all-the-icons-ivy-rich all-the-icons-ivy all-the-icons-completion all-the-icons deadgrep use-package burly counsel ivy-rich ivy rust-playground flycheck-rust))
+ '(safe-local-variable-values '((c-set-style . "BSD"))))
 
 (setq ivy-rich-parse-remote-buffer nil)
 

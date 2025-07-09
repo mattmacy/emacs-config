@@ -8,13 +8,15 @@
 
 ;; GTD directories
 (setq org-directory "~/org/")
-(setq org-agenda-files '("~/org/gtd/"
-			 "~/org/gtd/projects"))
-
 
 ;; Create GTD directories if they don't exist
 (unless (file-directory-p "~/org/gtd")
   (make-directory "~/org/gtd" t))
+(unless (file-directory-p "~/org/gtd/projects")
+  (make-directory "~/org/gtd/projects" t))
+
+;; Set agenda files to include all org files in gtd directory and projects subdirectory
+(setq org-agenda-files (append (directory-files-recursively "~/org/gtd/" "\\.org$")))
 
 ;; Basic GTD file structure
 (setq org-default-notes-file "~/org/gtd/inbox.org")
@@ -48,33 +50,38 @@
                       ("someday" . ?s)
                       (:endgroup)))
 
-;; Agenda views
+;; Agenda views - CONSOLIDATED (no duplicates)
 (setq org-agenda-custom-commands
       '(("n" "Next Actions" todo "NEXT")
         ("w" "Waiting For" todo "WAITING")
-        ("p" "Projects" tags "+project")
         ("s" "Someday Maybe" tags "+someday")
         ("c" "Contexts"
          ((tags-todo "@computer")
           (tags-todo "@phone")
           (tags-todo "@research")
           (tags-todo "@errands")))
-	("d" "Recent Accomplishments"
-	 ((agenda "" ((org-agenda-span 'week)
-		      (org-agenda-start-day "-7d")        ; Start 6 days ago
-		      (org-agenda-show-log t)
-		      (org-agenda-log-mode-items '(closed))
-		      (org-agenda-overriding-header "This Week's Completed Items")))
-	  (agenda "" ((org-agenda-span 'day)
-		      (org-agenda-show-log t) 
-		      (org-agenda-log-mode-items '(closed))
-		      (org-agenda-overriding-header "Today's Completed Items")))))
+        ("d" "Recent Accomplishments"
+         ((agenda "" ((org-agenda-span 'day)
+                     (org-agenda-show-log t)
+                     (org-agenda-log-mode-items '(closed))
+                     (org-agenda-overriding-header "Today's Completed Items")))
+          (agenda "" ((org-agenda-span 'week)
+                     (org-agenda-start-day "-6d")
+                     (org-agenda-show-log t)
+                     (org-agenda-log-mode-items '(closed))
+                     (org-agenda-overriding-header "This Week's Completed Items")))))
+        ("p" "Projects"
+         ((tags "+project" ((org-agenda-overriding-header "Project Headers")))
+          (todo "TODO" ((org-agenda-overriding-header "Project TODOs")))
+          (todo "NEXT" ((org-agenda-overriding-header "Project NEXT Actions")))
+          (todo "WAITING" ((org-agenda-overriding-header "Project WAITING Items")))))
         ("r" "Review"
          ((agenda "" ((org-agenda-span 'day)))
           (todo "NEXT")
+          (todo "TODO")
           (todo "WAITING")))))
 
-;; Capture templates
+;; Capture templates - FIXED (no duplicate keys)
 (setq org-capture-templates
       '(("t" "Todo" entry (file+headline "~/org/gtd/inbox.org" "Inbox")
          "* TODO %?\n  CREATED: %U")
@@ -84,11 +91,10 @@
          "* %? :project:\n  CREATED: %U\n** Outcome\n** Next Actions")
         ("w" "Waiting" entry (file+headline "~/org/gtd/inbox.org" "Inbox")
          "* WAITING %? :waiting:\n  CREATED: %U")
-	("d" "Daily Review" entry 
+        ("d" "Daily Review" entry 
          (file+olp+datetree "~/org/gtd/reviews.org")
          "* Daily Review %U\n** Accomplished\n- %?\n** Learned\n- \n** Tomorrow's Focus\n- ")
-        
-        ("w" "Weekly Review" entry
+        ("W" "Weekly Review" entry  ; Changed from "w" to "W" to avoid conflict
          (file+olp+datetree "~/org/gtd/reviews.org")
          "* Weekly Review %U\n** Major Accomplishments\n- %?\n** Key Learnings\n- \n** Next Week's Priorities\n- \n** Challenges & Solutions\n- ")
         ("s" "Someday" entry (file+headline "~/org/gtd/someday.org" "Someday Maybe")
@@ -106,29 +112,13 @@
 (setq org-agenda-skip-scheduled-if-done t)
 (setq org-agenda-start-with-log-mode t)
 
-
-(setq org-agenda-custom-commands
-      (append org-agenda-custom-commands
-              '(("a" "Accomplishments Review"
-                 ((agenda "" ((org-agenda-span 'day)
-                             (org-agenda-show-log t)
-                             (org-agenda-log-mode-items '(closed))))
-                  (agenda "" ((org-agenda-span 'week)
-                             (org-agenda-show-log t)
-                             (org-agenda-log-mode-items '(closed))))))
-                
-                ("A" "This Week's Done Items" 
-                 ((agenda "" ((org-agenda-span 'week)
-                             (org-agenda-show-log t)
-                             (org-agenda-log-mode-items '(closed))
-                             (org-agenda-skip-function 
-                              '(org-agenda-skip-entry-if 'nottodo 'done)))))))))
 ;; Better logging of accomplishments
 (setq org-log-done 'time)
 (setq org-log-into-drawer t)  ; Keep logs tidy in a drawer
 
 ;; Track when items were closed and notes about completion
-(setq org-log-done 'note)  ; Prompts for a note when marking DONE
+;; Note: This conflicts with org-log-done 'time above, choose one:
+;; (setq org-log-done 'note)  ; Prompts for a note when marking DONE
 
 ;; =============================================================================
 ;; INTERVIEW PREP TIME MANAGEMENT EXTENSION

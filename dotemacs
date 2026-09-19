@@ -567,19 +567,15 @@
 (setq debug-on-error nil)
 
 
-(add-to-list 'load-path "~/.elisp/tuareg-mode")
-    (autoload 'tuareg-mode "tuareg" "Major mode for editing Caml code" t)
-    (autoload 'camldebug "camldebug" "Run the Caml debugger" t)
-    (autoload 'tuareg-imenu-set-imenu "tuareg-imenu" 
-      "Configuration of imenu for tuareg" t)
-
-(add-hook 'tuareg-mode-hook 'tuareg-imenu-set-imenu)
-
-
-(setq auto-mode-alist 
-        (append '(("\\.ml[ily]?$" . tuareg-mode)
-	          ("\\.topml$" . tuareg-mode))
-                  auto-mode-alist))
+;; OCaml (tuareg + dune + eglot/ocaml-lsp-server) now lives in the ZipCPU
+;; section below.  The old ~/.elisp/tuareg-mode checkout is off load-path
+;; because add-to-list prepends and it would shadow the packaged tuareg.
+;;(add-to-list 'load-path "~/.elisp/tuareg-mode")
+;;    (autoload 'tuareg-mode "tuareg" "Major mode for editing Caml code" t)
+;;    (autoload 'camldebug "camldebug" "Run the Caml debugger" t)
+;;    (autoload 'tuareg-imenu-set-imenu "tuareg-imenu"
+;;      "Configuration of imenu for tuareg" t)
+;;(add-hook 'tuareg-mode-hook 'tuareg-imenu-set-imenu)
 
 
 (add-to-list 'load-path "~/.elisp")
@@ -589,6 +585,192 @@
   )
 
 ;;(load-theme 'weyland-yutani t)
+
+
+
+;;; ---------------------------------------------------------------------
+;;; ZipCPU tutorial: Verilog / formal (sby) / OCaml
+;;; ---------------------------------------------------------------------
+
+;; GUI Emacs on macOS does not inherit the shell's PATH, so verilator/sby
+;; (~/.local/oss-cad-suite/bin) and opam's switch bin would be invisible.
+;; This copies PATH (and opam's vars) from a login shell.  If your PATH
+;; additions live in ~/.zshrc rather than ~/.zprofile, add "-i" to
+;; `exec-path-from-shell-arguments'.
+(use-package exec-path-from-shell
+  :if (memq window-system '(mac ns x))
+  :custom
+  (exec-path-from-shell-variables
+   '("PATH" "MANPATH" "OPAM_SWITCH_PREFIX" "CAML_LD_LIBRARY_PATH" "OCAML_TOPLEVEL_PATH"))
+  :config
+  (exec-path-from-shell-initialize))
+
+;; Belt and braces: make sure the OSS CAD Suite is reachable even if the
+;; shell env didn't bring it in.
+(let ((oss "~/.local/oss-cad-suite/bin"))
+  (when (file-directory-p oss)
+    (add-to-list 'exec-path (expand-file-name oss) t)
+    (setenv "PATH" (concat (getenv "PATH") ":" (expand-file-name oss)))))
+
+;; --- verilog-mode: electric behaviour off, 4-space indent ----------------
+(use-package verilog-mode
+  :mode (("\\.v\\'" . verilog-mode) ("\\.sv\\'" . verilog-mode)
+         ("\\.vh\\'" . verilog-mode) ("\\.svh\\'" . verilog-mode))
+  :custom
+  (verilog-auto-newline nil)          ; stop inserting newlines on ; and ,
+  (verilog-auto-indent-on-newline nil)
+  (verilog-tab-always-indent nil)
+  (verilog-indent-level 4)
+  (verilog-indent-level-module 4)
+  (verilog-indent-level-declaration 4)
+  (verilog-indent-level-behavioral 4)
+  (verilog-case-indent 4)
+  (verilog-indent-lists nil)          ; the usual culprit for weird alignment
+  (verilog-auto-lineup 'declarations)
+  (verilog-highlight-grouping-keywords t)
+  :bind (:map verilog-mode-map
+              ("C-c v" . my/verilator-lint)))
+
+;; .sby files are INI-style
+(add-to-list 'auto-mode-alist '("\\.sby\\'" . conf-mode))
+
+;; --- lint on the fly with Verilator ---------------------------------------
+;; Flycheck ships a `verilog-verilator' checker (verilator --lint-only -Wall);
+;; there is no separate flycheck-verilog package.  "." on the include path
+;; lets verilator find sibling modules in the same lesson directory.
+(use-package flycheck
+  :hook (verilog-mode . flycheck-mode)
+  :custom
+  (flycheck-verilator-include-path '(".")))
+
+;; --- LSP via eglot (built into Emacs 29+) ---------------------------------
+;; verible-verilog-ls: https://github.com/chipsalliance/verible/releases
+;; (macOS binary, drop it on PATH).  ocamllsp: `opam install ocaml-lsp-server'.
+;; Both hooks are no-ops until the server is actually installed.
+(use-package eglot
+  :ensure nil
+  :config
+  ;; --rules_config_search makes the server honour a .rules.verible_lint
+  ;; found upward from each file (there is one in ~/Devel/ZipTutorial that
+  ;; turns off the Google-style rules ZipCPU code violates, e.g. no-tabs).
+  (add-to-list 'eglot-server-programs
+               '(verilog-mode . ("verible-verilog-ls" "--rules_config_search")))
+  ;; tuareg-mode -> ocamllsp is already in eglot's default table.
+  )
+
+(defun my/eglot-verilog-maybe ()
+  "Start eglot in Verilog buffers if verible-verilog-ls is on PATH."
+  (when (executable-find "verible-verilog-ls") (eglot-ensure)))
+
+(defun my/eglot-ocaml-maybe ()
+  "Start eglot in OCaml buffers if ocamllsp is on PATH."
+  (when (executable-find "ocamllsp") (eglot-ensure)))
+
+(add-hook 'verilog-mode-hook #'my/eglot-verilog-maybe)
+(add-hook 'tuareg-mode-hook  #'my/eglot-ocaml-maybe)
+
+;; --- compilation-mode: jump to failing assertions -------------------------
+(with-eval-after-load 'compile
+  ;; Verilator:  %Error: top.v:12:5: ...   /   %Warning-WIDTH: top.v:12:5: ...
+  ;; Group 1 = "Warning" when present, so next-error visits errors first.
+  (add-to-list 'compilation-error-regexp-alist-alist
+               '(verilator
+                 "^%\\(?:Error\\|\\(Warning\\)\\)[^:]*: \\([^ :]+\\):\\([0-9]+\\):\\([0-9]+\\)"
+                 2 3 4 (1)))
+  (add-to-list 'compilation-error-regexp-alist 'verilator)
+
+  ;; sby / smtbmc.  Verified against sby from oss-cad-suite (2026-09):
+  ;;   SBY .. [t] engine_0.basecase: ##  0:00:00  Assert failed in sfifo: sfifo.v:145.3-145.35 (_witness_...)
+  ;;   SBY .. [t] summary:   failed assertion sfifo._witness_.check_assert_... at sfifo.v:145.3-145.35
+  ;;   SBY .. [t] engine_0: ##  0:00:00  Unreached cover statement at sfifo: sfifo.v:263.3-263.24 (...)
+  ;;   SBY .. [t] summary:   sfifo._witness_.check_cover_... at sfifo.v:263.3-263.24   (under "unreached cover statements:")
+  ;; Paths are relative to the .sby file's directory, which is where
+  ;; `my/sby-run' sets default-directory.
+  (add-to-list 'compilation-error-regexp-alist-alist
+               '(sby-assert
+                 "\\(?:Assert failed in [^:]+\\|failed assertion \\S-+ at\\):? \\([^ :]+\\):\\([0-9]+\\)\\.\\([0-9]+\\)"
+                 1 2 3))
+  (add-to-list 'compilation-error-regexp-alist 'sby-assert)
+
+  ;; Cover statements not reached: flagged as warnings (type 1).  The
+  ;; summary form is just "<name> at file:line.col"; the check_cover_ token
+  ;; keeps it from swallowing the "reached cover statement" lines.
+  (add-to-list 'compilation-error-regexp-alist-alist
+               '(sby-cover
+                 "\\(?:Unreached cover statement at [^:]+:\\|summary: +\\S-*check_cover_\\S-+ at\\) \\([^ :]+\\):\\([0-9]+\\)\\.\\([0-9]+\\)"
+                 1 2 3 1))
+  (add-to-list 'compilation-error-regexp-alist 'sby-cover)
+
+  ;; Yosys front-end errors/warnings, as printed directly or under sby's
+  ;; "SBY hh:mm:ss [task] base: " prefix:
+  ;;   top.v:12: ERROR: syntax error, unexpected ...
+  ;;   top.v:12: Warning: ...
+  (add-to-list 'compilation-error-regexp-alist-alist
+               '(yosys
+                 "\\(?:^\\| \\)\\([^ :]+\\.s?vh?\\):\\([0-9]+\\): \\(?:ERROR\\|\\(Warning\\)\\):"
+                 1 2 nil (3)))
+  (add-to-list 'compilation-error-regexp-alist 'yosys)
+
+  ;; A dedicated compilation mode for sby that only knows the sby/yosys
+  ;; patterns.  With the global list, Emacs's generic `gnu' regexp also
+  ;; fires on informational lines like
+  ;;   Value for anyconst sfifo.f_first_addr (sfifo.v:163.32-163.44): 0
+  ;; and next-error tries to visit a garbage filename first.
+  (defvar sby-error-regexp-alist '(sby-assert sby-cover yosys))
+  (define-compilation-mode sby-mode "sby" "Compilation mode for SymbiYosys runs."))
+
+(setq compilation-scroll-output 'first-error)
+
+;; --- one-key formal / lint loops ------------------------------------------
+(defun my/sby-run (&optional choose)
+  "Run `sby -f' on the .sby file next to the current buffer's file.
+If there is exactly one .sby file in the directory, use it; otherwise
+prompt.  With prefix arg CHOOSE, always prompt."
+  (interactive "P")
+  (let* ((dir (if buffer-file-name
+                  (file-name-directory buffer-file-name)
+                default-directory))
+         (candidates (directory-files dir nil "\\.sby\\'"))
+         (sby-file
+          (cond ((null candidates)
+                 (user-error "No .sby file in %s" dir))
+                ((and (not choose) (= (length candidates) 1))
+                 (car candidates))
+                (t (completing-read "sby file: " candidates nil t))))
+         (default-directory dir))
+    (save-some-buffers t (lambda () (and buffer-file-name
+                                         (string-prefix-p dir buffer-file-name))))
+    (require 'compile)
+    (compilation-start (format "sby -f %s" (shell-quote-argument sby-file))
+                       'sby-mode)))
+
+(defun my/verilator-lint ()
+  "Run `verilator --lint-only -Wall' on the current file in compilation-mode."
+  (interactive)
+  (unless buffer-file-name (user-error "Buffer is not visiting a file"))
+  (save-buffer)
+  (let ((default-directory (file-name-directory buffer-file-name)))
+    (compile (format "verilator --lint-only -Wall -I. %s"
+                     (shell-quote-argument
+                      (file-name-nondirectory buffer-file-name))))))
+
+;; C-c <letter> is reserved for users.  Global so it also works from the
+;; .sby buffer itself.
+(global-set-key (kbd "C-c f") 'my/sby-run)
+
+;; --- OCaml: tuareg + dune + ocamllsp (via eglot, hooked above) ------------
+;; opam install ocaml-lsp-server ocamlformat
+(use-package tuareg
+  :mode (("\\.ml[ily]?\\'" . tuareg-mode)
+         ("\\.topml\\'"    . tuareg-mode))
+  :hook (tuareg-mode . (lambda ()
+                         (setq-local compile-command "dune build 2>&1")
+                         (setq-local indent-tabs-mode nil))))
+
+;; dune-mode for dune / dune-project / dune-workspace files
+(use-package dune)
+
+
 
 (require 'xcscope)
 (cscope-setup)

@@ -1,3 +1,4 @@
+;;; -*- lexical-binding: t -*-
 (setq inhibit-startup-message t)
 (set-fringe-mode 10)
 (setq visible-bell t)
@@ -5,8 +6,13 @@
 (package-initialize)
 
 
-(set-face-attribute 'fixed-pitch nil :font "Fira Code" :height 220)
-(set-face-attribute 'variable-pitch nil :font "Cantarell" :height 250 :weight 'regular)
+;; These fonts are not installed on every machine, and an unavailable
+;; :font signals an error that aborts the rest of this file.  Only apply
+;; them when present.  Debian/Ubuntu: apt install fonts-firacode fonts-cantarell
+(when (find-font (font-spec :name "Fira Code"))
+  (set-face-attribute 'fixed-pitch nil :font "Fira Code" :height 220))
+(when (find-font (font-spec :name "Cantarell"))
+  (set-face-attribute 'variable-pitch nil :font "Cantarell" :height 250 :weight 'regular))
 
 (require 'package)
 (setq package-archives '(("melpa" . "https://melpa.org/packages/")
@@ -18,43 +24,33 @@
 ;; just comment it out by adding a semicolon to the start of the line.
 ;; You may delete these explanatory comments.
 
-(unless package-archive-contents
-  (package-refresh-contents))
-
 (unless (package-installed-p 'use-package)
+  (unless package-archive-contents
+    (package-refresh-contents))
   (package-install 'use-package))
 (require 'use-package)
 (setq use-package-always-ensure t)
-
-;; Auto-install all-the-icons-dired
-(unless (package-installed-p 'all-the-icons-dired)
-  (package-refresh-contents)
-  (package-install 'all-the-icons-dired))
-
-;; Auto-install org-roam (you're using it with use-package, but ensure it's available)
-(unless (package-installed-p 'org-roam)
-  (package-refresh-contents)
-  (package-install 'org-roam))
-
-;; Auto-install auto-package-update
-(unless (package-installed-p 'auto-package-update)
-  (package-refresh-contents)
-  (package-install 'auto-package-update))
-
-;; Auto-install xcscope (if you want to ensure it's available)
-(unless (package-installed-p 'xcscope)
-  (package-refresh-contents)
-  (package-install 'xcscope))
 
 ;; For the theme, if sourcerer is from a package (add if it's a package)
 ;; (unless (package-installed-p 'sourcerer-theme)
 ;;   (package-refresh-contents)
 ;;   (package-install 'sourcerer-theme))
 
-;; Optional: Auto-install packages from your custom-set-variables list
-;; These appear to be packages you've installed but might want to ensure are available
+;; Packages used directly below (outside a use-package block), plus the
+;; ones from the custom-set-variables list worth keeping around.
+;; The archive is refreshed once, only if something needs installing:
+;; refreshing per package on a fresh machine gets us rate-limited by
+;; MELPA (HTTP 429) and the install then errors out mid-init.
 (defvar my-required-packages
-  '(visual-fill-column
+  '(all-the-icons-dired
+    org-roam
+    auto-package-update
+    xcscope
+    ivy
+    ivy-rich
+    all-the-icons-ivy-rich
+    all-the-icons
+    visual-fill-column
     org-bullets
     chronometrist
     git-timemachine
@@ -65,10 +61,10 @@
     flycheck-rust
     burly))
 
-(dolist (package my-required-packages)
-  (unless (package-installed-p package)
+(let ((missing (seq-remove #'package-installed-p my-required-packages)))
+  (when missing
     (package-refresh-contents)
-    (package-install package)))
+    (mapc #'package-install missing)))
 
 
 
@@ -125,6 +121,9 @@
   :bind-keymap
   ("C-c n d" . org-roam-dailies-map)
   :config
+  ;; A missing directory makes org-roam-db-autosync-mode error out.
+  (unless (file-directory-p org-roam-directory)
+    (make-directory org-roam-directory t))
   (require 'org-roam-dailies)
   (org-roam-db-autosync-mode))
 
@@ -138,10 +137,6 @@
 ;;
 ;; Ivy Mode
 ;;
-; Auto-install ivy if not present
-(unless (package-installed-p 'ivy)
-  (package-refresh-contents)
-  (package-install 'ivy))
 (ivy-mode 1)
 (setq ivy-use-virtual-buffers t)
 (setq ivy-count-format "(%d/%d) ")
@@ -167,17 +162,6 @@
 ;;   (setq ivy-posframe-parameters '((internal-border-width . 4) (font . "Roboto Mono")))
 ;;   (setq ivy-posframe-width 700)
 ;;   (ivy-posframe-mode +1))
-
-;; Auto-install ivy-rich if not present
-(unless (package-installed-p 'ivy-rich)
-  (package-refresh-contents)
-  (package-install 'ivy-rich))
-;; Auto-install ivy-rich if not present
-(unless (package-installed-p 'all-the-icons-ivy-rich)
-  (package-refresh-contents)
-  (package-install 'all-the-icons-ivy-rich)
-  (package-install 'all-the-icons))
-
 
 (use-package ivy-rich
   :preface
@@ -772,6 +756,15 @@ prompt.  With prefix arg CHOOSE, always prompt."
 
 
 
+;; xcscope.el predates lexical binding and relies on dynamic scoping
+;; (the byte-compiler flags `limit-to-current-result' and friends as free
+;; variables), so it can't take a lexical-binding cookie.  Keep Emacs 31
+;; from warning about it on every startup.  Warnings raised during init
+;; are deferred until startup completes, so this must be a global
+;; setting rather than a `let' around the `require'.
+(require 'warnings)
+(add-to-list 'warning-suppress-log-types
+             '(files missing-lexbind-cookie "~/.elisp/xcscope.el"))
 (require 'xcscope)
 (cscope-setup)
 

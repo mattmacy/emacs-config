@@ -1,4 +1,4 @@
-;;; sourcerer-theme.el --- A version of sourcerer by xero
+;;; sourcerer-theme.el --- A version of sourcerer by xero  -*- lexical-binding: t -*-
 
 ;; Author: Bryan Gilbert <gilbertw1@gmail.com>
 ;; Keywords: themes
